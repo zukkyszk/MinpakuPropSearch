@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import time
+import random
 import logging
 from dataclasses import dataclass, field, asdict
 from datetime import date, timedelta
@@ -16,9 +17,39 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
 }
+
+
+def _make_session(proxy_url: Optional[str] = None) -> requests.Session:
+    """
+    セッションを生成する。
+    cloudscraper が利用可能な場合はそれを使い、Cloudflare チャレンジを自動解決する。
+    """
+    try:
+        import cloudscraper
+        session = cloudscraper.create_scraper(
+            browser={"browser": "chrome", "platform": "windows", "mobile": False}
+        )
+    except ImportError:
+        session = requests.Session()
+
+    session.headers.update(HEADERS)
+
+    if proxy_url:
+        session.proxies = {"http": proxy_url, "https": proxy_url}
+        logger.info("プロキシ使用: %s", proxy_url)
+
+    return session
 
 # 物件種別 → マッチングキーワード
 TYPE_KEYWORDS: dict[str, list[str]] = {
@@ -68,8 +99,7 @@ class BaseScraper:
 
     def __init__(self, config: dict):
         self.config = config
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
+        self.session = _make_session(config.get("proxy_url"))
 
     def fetch(self, url: str, **kwargs) -> Optional[BeautifulSoup]:
         try:

@@ -18,9 +18,16 @@ on:
         description: "REINS をスキップ"
         type: boolean
         default: false
+      first_run:
+        description: "初回実行モード（昨日〜今日の物件のみ）"
+        type: boolean
+        default: false
 
 jobs:
   search:
+    # self-hosted ランナーを使う場合: runs-on: [self-hosted, linux]
+    # GitHub 標準ランナーは日本の不動産ポータルに IP ブロックされるため
+    # セルフホストランナーの使用を推奨します（README 参照）
     runs-on: ubuntu-latest
     permissions:
       contents: write  # seen_properties.json のコミット用
@@ -62,6 +69,9 @@ jobs:
           fi
           if [ "${{ github.event.inputs.no_reins }}" = "true" ]; then
             ARGS="$ARGS --no-reins"
+          fi
+          if [ "${{ github.event.inputs.first_run }}" = "true" ]; then
+            ARGS="$ARGS --first-run"
           fi
           python main.py $ARGS
 
