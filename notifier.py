@@ -106,6 +106,9 @@ def _build_html(properties: list[Property], prefix: str) -> str:
           <td style="padding:8px;border:1px solid #ddd;text-align:center;">
             {f"{p.yield_rate:.1f}%" if p.yield_rate else "不明"}
           </td>
+          <td style="padding:8px;border:1px solid #ddd;text-align:center;white-space:nowrap;">
+            {p.published_date.strftime("%-m/%-d") if p.published_date else "-"}
+          </td>
           <td style="padding:8px;border:1px solid #ddd;text-align:center;">
             {f"築{p.building_age}年" if p.building_age else "不明"}
           </td>
@@ -158,6 +161,7 @@ def _build_html(properties: list[Property], prefix: str) -> str:
         <th>サイト</th>
         <th>物件価格</th>
         <th>民泊利回り</th>
+        <th>掲載日</th>
         <th>築年数</th>
         <th>担保評価額</th>
         <th>居住用利回り</th>

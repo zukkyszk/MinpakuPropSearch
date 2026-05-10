@@ -4,13 +4,14 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 import yaml
 
 from scrapers import SuumoScraper, AtHomeScraper, HomesScraper, RakumachiScraper, ReinsScraper
 from scrapers.base import BaseScraper, Property
 from evaluator import filter_properties
-from state import load_seen, save_seen, filter_new, mark_seen
+from state import load_seen, save_seen, filter_new, mark_seen, is_first_run
 from notifier import send_notification
 
 logging.basicConfig(
@@ -42,6 +43,22 @@ def get_profiles(config: dict) -> list[dict]:
     return [{}]
 
 
+def _filter_by_publish_date(properties: list[Property], since: date) -> list[Property]:
+    """
+    掲載日が since 以降の物件のみ残す。
+    掲載日が取得できなかった物件は除外せず含める（見逃しを防ぐ）。
+    """
+    kept, skipped = [], 0
+    for p in properties:
+        if p.published_date is None or p.published_date >= since:
+            kept.append(p)
+        else:
+            skipped += 1
+    if skipped:
+        logger.info("掲載日フィルタ: %d件を除外（%s より前）", skipped, since)
+    return kept
+
+
 def _dedup(properties: list[Property]) -> list[Property]:
     """同じ ID の物件が複数プロファイルで重複した場合、スコアが高い方を残す"""
     best: dict[str, Property] = {}
@@ -51,7 +68,8 @@ def _dedup(properties: list[Property]) -> list[Property]:
     return list(best.values())
 
 
-def run(dry_run: bool = False, force: bool = False, no_reins: bool = False) -> int:
+def run(dry_run: bool = False, force: bool = False, no_reins: bool = False,
+        first_run: bool = False) -> int:
     config = load_config()
     profiles = get_profiles(config)
     eval_cfg = config.get("evaluation", {})
@@ -105,6 +123,16 @@ def run(dry_run: bool = False, force: bool = False, no_reins: bool = False) -> i
     all_candidates.sort(key=lambda p: p.score, reverse=True)
     logger.info("合計候補: %d件（重複除去済み）", len(all_candidates))
 
+    # --- 初回実行: 昨日〜今日の掲載物件のみに絞り込む ---
+    auto_first = is_first_run() and not force
+    if first_run or auto_first:
+        since = date.today() - timedelta(days=1)
+        reason = "--first-run 指定" if first_run else "初回実行を自動検出"
+        logger.info("%s: 掲載日 %s（昨日）以降に絞り込みます", reason, since)
+        before = len(all_candidates)
+        all_candidates = _filter_by_publish_date(all_candidates, since)
+        logger.info("掲載日フィルタ後: %d件（除外 %d件）", len(all_candidates), before - len(all_candidates))
+
     # 既見物件を除外（--force で全件通知）
     seen = load_seen()
     if force:
@@ -144,9 +172,12 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="通知せずに結果を表示")
     parser.add_argument("--force", action="store_true", help="既見物件も含めて通知")
     parser.add_argument("--no-reins", action="store_true", help="REINSをスキップ")
+    parser.add_argument("--first-run", action="store_true",
+                        help="初回実行モード：昨日〜今日の掲載物件のみ通知（seen_properties.json が空の場合は自動適用）")
     args = parser.parse_args()
 
-    sys.exit(run(dry_run=args.dry_run, force=args.force, no_reins=args.no_reins))
+    sys.exit(run(dry_run=args.dry_run, force=args.force,
+                 no_reins=args.no_reins, first_run=args.first_run))
 
 
 if __name__ == "__main__":

@@ -116,6 +116,7 @@ class SuumoScraper(BaseScraper):
 
             text = item.get_text()
             building_age = self.parse_age(text)
+            published_date = self._extract_date_from_item(item)
 
             return Property(
                 id=prop_id,
@@ -127,6 +128,7 @@ class SuumoScraper(BaseScraper):
                 area=area_name,
                 address=address,
                 building_age=building_age,
+                published_date=published_date,
             )
         except Exception as e:
             logger.debug("SUUMO parse error: %s", e)

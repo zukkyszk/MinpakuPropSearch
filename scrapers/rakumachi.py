@@ -125,6 +125,8 @@ class RakumachiScraper(BaseScraper):
             age_tag = item.select_one("[class*='age'], [class*='chiku']")
             building_age = self.parse_age(age_tag.get_text()) if age_tag else None
 
+            published_date = self._extract_date_from_item(item)
+
             return Property(
                 id=prop_id,
                 source=self.SOURCE,
@@ -135,6 +137,7 @@ class RakumachiScraper(BaseScraper):
                 area=area_name,
                 address=address,
                 building_age=building_age,
+                published_date=published_date,
             )
         except Exception as e:
             logger.debug("楽待 parse error: %s", e)

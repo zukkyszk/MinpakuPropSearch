@@ -3,6 +3,7 @@ import re
 import time
 import logging
 from dataclasses import dataclass, field, asdict
+from datetime import date, timedelta
 from typing import Optional
 import requests
 from bs4 import BeautifulSoup
@@ -49,6 +50,7 @@ class Property:
     floor_area: Optional[float] = None   # 延床面積 (m²)
     land_area: Optional[float] = None    # 土地面積 (m²)
     description: str = ""
+    published_date: Optional[date] = None  # 掲載日（取得できた場合のみ）
     score: int = 0
     extra: dict = field(default_factory=dict)
 
@@ -94,6 +96,64 @@ class BaseScraper:
             if any(kw in text for kw in keywords):
                 return True
         return False
+
+    @staticmethod
+    def parse_date(text: str) -> Optional[date]:
+        """
+        日本語テキストから掲載日を抽出する。
+        見つからない場合は None を返す（呼び出し側は None を「不明＝含める」と扱う）。
+        """
+        today = date.today()
+        # 今日 / 本日
+        if re.search(r"今日|本日", text):
+            return today
+        # 昨日
+        if "昨日" in text:
+            return today - timedelta(days=1)
+        # N日前
+        m = re.search(r"(\d+)\s*日前", text)
+        if m:
+            return today - timedelta(days=int(m.group(1)))
+        # YYYY年M月D日
+        m = re.search(r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日", text)
+        if m:
+            try:
+                return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except ValueError:
+                pass
+        # YYYY/MM/DD or YYYY-MM-DD
+        m = re.search(r"(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})", text)
+        if m:
+            try:
+                return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except ValueError:
+                pass
+        return None
+
+    @staticmethod
+    def _extract_date_from_item(item) -> Optional[date]:
+        """BeautifulSoup のアイテム要素から掲載日を探す"""
+        from scrapers.base import BaseScraper  # 循環回避のため遅延参照
+        # class 名に date/published/kakituke 等を含む要素を優先
+        for sel in [
+            "[class*='date']", "[class*='Date']",
+            "[class*='published']", "[class*='kakituke']",
+            "[class*='update']", "[class*='nyuryoku']",
+        ]:
+            tag = item.select_one(sel)
+            if tag:
+                d = BaseScraper.parse_date(tag.get_text())
+                if d:
+                    return d
+        # フォールバック: 「掲載日」「公開日」「更新日」ラベルの後ろを正規表現で探す
+        full_text = item.get_text(" ", strip=True)
+        for label in ["掲載日", "公開日", "登録日", "更新日"]:
+            m = re.search(rf"{label}[：:\s]+([^\s]{{6,12}})", full_text)
+            if m:
+                d = BaseScraper.parse_date(m.group(1))
+                if d:
+                    return d
+        return None
 
     @staticmethod
     def parse_price(text: str) -> Optional[int]:

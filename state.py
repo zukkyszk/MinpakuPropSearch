@@ -26,3 +26,8 @@ def filter_new(properties: list[Property], seen: set[str]) -> list[Property]:
 
 def mark_seen(properties: list[Property], seen: set[str]) -> set[str]:
     return seen | {p.id for p in properties}
+
+
+def is_first_run() -> bool:
+    """seen_properties.json が存在しないか空なら初回実行と判定する"""
+    return not STATE_FILE.exists() or len(load_seen()) == 0
