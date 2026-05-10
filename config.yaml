@@ -1,0 +1,43 @@
+search:
+  # 検索エリア（都道府県・市区町村）
+  areas:
+    - 東京都
+    - 大阪府
+    - 京都府
+
+  # 価格帯（円）
+  max_price: 50000000   # 5,000万円
+  min_price: 3000000    # 300万円
+
+  # 最低表面利回り (%)
+  min_yield: 7.0
+
+  # 最大築年数（年）
+  max_building_age: 40
+
+  # 物件種別（空リストで全種別）
+  property_types: []
+
+  # フリーキーワード
+  keywords: []
+
+evaluation:
+  # 民泊優遇エリア（加点対象）
+  preferred_areas:
+    - 新宿区
+    - 渋谷区
+    - 台東区
+    - 中央区
+    - 港区
+    - 京都市
+    - 大阪市中央区
+    - 大阪市浪速区
+    - 大阪市西区
+
+  # 通知する最低スコア（100点満点）
+  min_score: 50
+
+notification:
+  # 送信元GmailアドレスとApp Passwordは GitHub Secrets で設定
+  # GMAIL_USER, GMAIL_APP_PASSWORD, NOTIFY_TO_EMAIL
+  subject_prefix: "[民泊物件]"
