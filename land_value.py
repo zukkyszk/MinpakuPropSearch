@@ -74,8 +74,10 @@ def _current_quarter() -> tuple[str, str]:
 
 
 @lru_cache(maxsize=64)
-def _fetch_mlit_transactions(city_code: str, transaction_type: str = "1") -> list[dict]:
-    """国土交通省APIから不動産取引価格を取得（宅地）"""
+def _fetch_mlit_transactions(city_code: str, transaction_type: str = "1") -> tuple[dict, ...]:
+    """国土交通省APIから不動産取引価格を取得（宅地）。
+    lru_cache と共存するため immutable な tuple で返す。
+    """
     from_q, to_q = _current_quarter()
     params = {
         "from": from_q,
@@ -88,10 +90,10 @@ def _fetch_mlit_transactions(city_code: str, transaction_type: str = "1") -> lis
         resp = requests.get(MLIT_API, params=params, timeout=15)
         resp.raise_for_status()
         data = resp.json()
-        return data.get("data", [])
+        return tuple(data.get("data", []))
     except Exception as e:
         logger.debug("国土交通省API エラー (%s): %s", city_code, e)
-        return []
+        return ()
 
 
 def get_land_price_m2(address: str, area: str) -> tuple[Optional[int], str]:

@@ -75,17 +75,29 @@ def _detect_structure(prop: Property) -> dict:
     return DEFAULT_STRUCTURE
 
 
+_MAX_AREA_M2 = 10_000   # 1棟物件として現実的な上限（1万m²）
+_MAX_LAND_M2 = 50_000   # 土地面積の現実的な上限
+
+
+def _clamp_area(value: float, max_val: float) -> Optional[float]:
+    """スクレイプ値の異常値ガード"""
+    if value <= 0 or value > max_val:
+        return None
+    return value
+
+
 def _estimate_floor_area(prop: Property) -> Optional[float]:
     """延床面積が未入力の場合、物件情報テキストから推定"""
     if prop.floor_area:
-        return prop.floor_area
+        return _clamp_area(prop.floor_area, _MAX_AREA_M2)
     text = prop.title + " " + prop.description + " " + prop.extra.get("raw_text", "")
     m = re.search(r"延床[面積]?\s*[:：]?\s*(\d+(?:\.\d+)?)\s*m", text)
     if m:
-        return float(m.group(1))
+        return _clamp_area(float(m.group(1)), _MAX_AREA_M2)
     # 土地面積があれば土地の60%を延床面積として概算
     if prop.land_area:
-        return prop.land_area * 0.6
+        clamped = _clamp_area(prop.land_area, _MAX_LAND_M2)
+        return clamped * 0.6 if clamped else None
     return None
 
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import html
 import os
 import smtplib
 import logging
@@ -28,6 +29,14 @@ def _format_price(yen: int | None) -> str:
     return f"{yen // 10000:,}万円"
 
 
+def _safe_url(url: str) -> str:
+    """href に使用できる安全な URL のみ通す。不正なスキームは # に差し替え。"""
+    stripped = url.strip()
+    if stripped.startswith("https://") or stripped.startswith("http://"):
+        return html.escape(stripped, quote=True)
+    return "#"
+
+
 def _surplus_label(pct: float | None) -> str:
     if pct is None:
         return "算出不可"
@@ -48,7 +57,7 @@ def _build_html(properties: list[Property], prefix: str) -> str:
     today = date.today().strftime("%Y年%m月%d日")
     rows = ""
     for i, p in enumerate(properties, 1):
-        source_label = SOURCE_LABELS.get(p.source, p.source)
+        source_label = html.escape(SOURCE_LABELS.get(p.source, p.source))
         ev = p.extra.get("asset_eval", {})
 
         collateral_val = ev.get("collateral_value")
@@ -56,6 +65,11 @@ def _build_html(properties: list[Property], prefix: str) -> str:
         res_yield = ev.get("residential_yield")
         land_price_m2 = ev.get("land_price_m2")
         data_src = ev.get("data_source", "")
+
+        # スクレイプ由来の文字列はすべてエスケープ
+        safe_title = html.escape(p.title)
+        safe_address = html.escape(p.address or p.area)
+        safe_url = _safe_url(p.url)
 
         collateral_str = _format_price(collateral_val) if collateral_val else "算出不可"
         surplus_str = _surplus_label(surplus_pct)
@@ -74,8 +88,8 @@ def _build_html(properties: list[Property], prefix: str) -> str:
         <tr style="background:{'#f9f9f9' if i % 2 == 0 else '#ffffff'}">
           <td style="padding:8px;border:1px solid #ddd;text-align:center;">{i}</td>
           <td style="padding:8px;border:1px solid #ddd;min-width:160px;">
-            <a href="{p.url}" style="color:#1a73e8;font-weight:bold;">{p.title}</a><br>
-            <span style="font-size:12px;color:#666;">{p.address or p.area}</span>
+            <a href="{safe_url}" style="color:#1a73e8;font-weight:bold;">{safe_title}</a><br>
+            <span style="font-size:12px;color:#666;">{safe_address}</span>
           </td>
           <td style="padding:8px;border:1px solid #ddd;text-align:center;white-space:nowrap;">
             <span style="background:#e3f2fd;padding:2px 6px;border-radius:4px;font-size:12px;">
