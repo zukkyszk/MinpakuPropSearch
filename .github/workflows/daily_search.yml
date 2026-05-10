@@ -25,10 +25,10 @@ on:
 
 jobs:
   search:
-    # self-hosted ランナーを使う場合: runs-on: [self-hosted, linux]
-    # GitHub 標準ランナーは日本の不動産ポータルに IP ブロックされるため
-    # セルフホストランナーの使用を推奨します（README 参照）
-    runs-on: ubuntu-latest
+    # self-hosted ランナーを使う場合は下の行のコメントを外し、ubuntu-latest 行をコメントアウト
+    # runs-on: [self-hosted, windows]   # Windows PC の場合
+    # runs-on: [self-hosted, linux]     # Linux PC / VPS の場合
+    runs-on: ubuntu-latest              # ← IP ブロックされる場合は上記に切り替え
     permissions:
       contents: write  # seen_properties.json のコミット用
 
