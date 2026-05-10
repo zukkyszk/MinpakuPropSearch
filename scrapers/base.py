@@ -19,6 +19,20 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
+# 物件種別 → マッチングキーワード
+TYPE_KEYWORDS: dict[str, list[str]] = {
+    "戸建て":         ["戸建", "一戸建", "住宅", "一軒家"],
+    "一戸建て":       ["戸建", "一戸建", "住宅", "一軒家"],
+    "アパート":       ["アパート"],
+    "一棟アパート":   ["アパート"],
+    "マンション":     ["マンション", "レジデンス", "コーポ"],
+    "一棟マンション": ["マンション", "レジデンス", "コーポ"],
+    "ビル":           ["ビル", "雑居", "オフィス"],
+    "一棟ビル":       ["ビル", "雑居", "オフィス"],
+    "区分マンション": ["区分"],
+    "土地":           ["土地", "宅地"],
+}
+
 
 @dataclass
 class Property:
@@ -32,7 +46,7 @@ class Property:
     address: str = ""
     building_age: Optional[int] = None   # 築年数
     building_type: str = ""
-    floor_area: Optional[float] = None   # 専有面積 (m²)
+    floor_area: Optional[float] = None   # 延床面積 (m²)
     land_area: Optional[float] = None    # 土地面積 (m²)
     description: str = ""
     score: int = 0
@@ -48,7 +62,7 @@ class Property:
 
 class BaseScraper:
     SOURCE = ""
-    REQUEST_DELAY = 2.0  # 礼儀として各リクエスト間に待機
+    REQUEST_DELAY = 2.0
 
     def __init__(self, config: dict):
         self.config = config
@@ -68,6 +82,18 @@ class BaseScraper:
 
     def search(self) -> list[Property]:
         raise NotImplementedError
+
+    @staticmethod
+    def match_property_types(prop: Property, property_types: list[str]) -> bool:
+        """物件が指定された種別のいずれかに一致するか判定する。空リストは全種別を許可。"""
+        if not property_types:
+            return True
+        text = prop.title + " " + prop.building_type + " " + prop.description
+        for ptype in property_types:
+            keywords = TYPE_KEYWORDS.get(ptype, [ptype])
+            if any(kw in text for kw in keywords):
+                return True
+        return False
 
     @staticmethod
     def parse_price(text: str) -> Optional[int]:

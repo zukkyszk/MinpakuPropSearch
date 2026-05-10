@@ -70,6 +70,7 @@ def _build_html(properties: list[Property], prefix: str) -> str:
         safe_title = html.escape(p.title)
         safe_address = html.escape(p.address or p.area)
         safe_url = _safe_url(p.url)
+        safe_profile = html.escape(p.extra.get("profile", ""))
 
         collateral_str = _format_price(collateral_val) if collateral_val else "算出不可"
         surplus_str = _surplus_label(surplus_pct)
@@ -90,6 +91,9 @@ def _build_html(properties: list[Property], prefix: str) -> str:
           <td style="padding:8px;border:1px solid #ddd;min-width:160px;">
             <a href="{safe_url}" style="color:#1a73e8;font-weight:bold;">{safe_title}</a><br>
             <span style="font-size:12px;color:#666;">{safe_address}</span>
+          </td>
+          <td style="padding:8px;border:1px solid #ddd;text-align:center;white-space:nowrap;font-size:12px;color:#555;">
+            {safe_profile}
           </td>
           <td style="padding:8px;border:1px solid #ddd;text-align:center;white-space:nowrap;">
             <span style="background:#e3f2fd;padding:2px 6px;border-radius:4px;font-size:12px;">
@@ -150,6 +154,7 @@ def _build_html(properties: list[Property], prefix: str) -> str:
       <tr>
         <th>#</th>
         <th>物件名・所在地</th>
+        <th>プロファイル</th>
         <th>サイト</th>
         <th>物件価格</th>
         <th>民泊利回り</th>
