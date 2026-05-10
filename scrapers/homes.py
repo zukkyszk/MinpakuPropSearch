@@ -2,17 +2,15 @@ from __future__ import annotations
 import logging
 import re
 from .base import BaseScraper, Property
+from areas import group_by_pref, address_in_area
 
 logger = logging.getLogger(__name__)
 
 AREA_PATHS = {
-    "東京都": "tokyo/",
-    "大阪府": "osaka/",
-    "京都府": "kyoto/",
-    "神奈川県": "kanagawa/",
-    "愛知県": "aichi/",
-    "福岡県": "fukuoka/",
-    "北海道": "hokkaido/",
+    "東京都": "tokyo/",     "神奈川県": "kanagawa/", "埼玉県": "saitama/",
+    "千葉県": "chiba/",     "大阪府": "osaka/",       "京都府": "kyoto/",
+    "兵庫県": "hyogo/",     "愛知県": "aichi/",       "福岡県": "fukuoka/",
+    "北海道": "hokkaido/",  "宮城県": "miyagi/",      "広島県": "hiroshima/",
     "沖縄県": "okinawa/",
 }
 
@@ -25,20 +23,21 @@ class HomesScraper(BaseScraper):
     def search(self) -> list[Property]:
         areas = self.config.get("areas", ["東京都"])
         results: list[Property] = []
-        for area in areas:
-            path = AREA_PATHS.get(area)
+        for pref, filter_keys in group_by_pref(areas).items():
+            path = AREA_PATHS.get(pref)
             if not path:
-                logger.warning("HOME'S: エリアパス不明 '%s'、スキップします", area)
+                logger.warning("HOME'S: エリアパス不明 '%s'、スキップします", pref)
                 continue
-            props = self._search_area(path, area)
+            props = self._search_area(path, pref)
+            if None not in filter_keys:
+                props = [p for p in props if address_in_area(p.address, filter_keys)]
             results.extend(props)
         return results
 
     def _search_area(self, area_path: str, area_name: str) -> list[Property]:
-        # HOME'S 収益物件（売りアパ・マンション一棟）
         endpoints = [
-            f"/tochi/apartment/{area_path}",   # 一棟アパート
-            f"/tochi/mansion/{area_path}",      # 一棟マンション
+            f"/tochi/apartment/{area_path}",
+            f"/tochi/mansion/{area_path}",
         ]
         properties: list[Property] = []
 
@@ -65,7 +64,6 @@ class HomesScraper(BaseScraper):
                     if prop:
                         properties.append(prop)
 
-                # ページネーション確認
                 has_next = soup.select_one(
                     "a[class*='next']:not([class*='disabled']), "
                     "[class*='pagination'] a:last-child"

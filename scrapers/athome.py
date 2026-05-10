@@ -2,18 +2,16 @@ from __future__ import annotations
 import logging
 import re
 from .base import BaseScraper, Property
+from areas import group_by_pref, address_in_area
 
 logger = logging.getLogger(__name__)
 
-# AtHome 収益物件検索（売りアパ・マンション）エリアスラッグ
+# AtHome 収益物件検索エリアスラッグ（都道府県）
 AREA_SLUGS = {
-    "東京都": "tokyo",
-    "大阪府": "osaka",
-    "京都府": "kyoto",
-    "神奈川県": "kanagawa",
-    "愛知県": "aichi",
-    "福岡県": "fukuoka",
-    "北海道": "hokkaido",
+    "東京都": "tokyo",     "神奈川県": "kanagawa", "埼玉県": "saitama",
+    "千葉県": "chiba",     "大阪府": "osaka",       "京都府": "kyoto",
+    "兵庫県": "hyogo",     "愛知県": "aichi",       "福岡県": "fukuoka",
+    "北海道": "hokkaido",  "宮城県": "miyagi",      "広島県": "hiroshima",
     "沖縄県": "okinawa",
 }
 
@@ -26,20 +24,21 @@ class AtHomeScraper(BaseScraper):
     def search(self) -> list[Property]:
         areas = self.config.get("areas", ["東京都"])
         results: list[Property] = []
-        for area in areas:
-            slug = AREA_SLUGS.get(area)
+        for pref, filter_keys in group_by_pref(areas).items():
+            slug = AREA_SLUGS.get(pref)
             if not slug:
-                logger.warning("AtHome: エリアスラッグ不明 '%s'、スキップします", area)
+                logger.warning("AtHome: エリアスラッグ不明 '%s'、スキップします", pref)
                 continue
-            props = self._search_area(slug, area)
+            props = self._search_area(slug, pref)
+            if None not in filter_keys:
+                props = [p for p in props if address_in_area(p.address, filter_keys)]
             results.extend(props)
         return results
 
     def _search_area(self, slug: str, area_name: str) -> list[Property]:
-        # 収益物件（投資用マンション・アパート・一棟ビル）
         search_types = [
-            f"/tochi/apartment/{slug}/",       # 売りアパート
-            f"/tochi/mansion/{slug}/",          # 売りマンション一棟
+            f"/tochi/apartment/{slug}/",
+            f"/tochi/mansion/{slug}/",
         ]
         properties: list[Property] = []
 

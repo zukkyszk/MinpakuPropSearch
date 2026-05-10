@@ -3,19 +3,16 @@ import logging
 import re
 from urllib.parse import urlencode
 from .base import BaseScraper, Property
+from areas import group_by_pref, address_in_area
 
 logger = logging.getLogger(__name__)
 
-# 楽待エリアコード（主要府県）
+# 楽待エリアコード（都道府県）
 AREA_CODES = {
-    "東京都": "13",
-    "大阪府": "27",
-    "京都府": "26",
-    "神奈川県": "14",
-    "愛知県": "23",
-    "福岡県": "40",
-    "北海道": "01",
-    "沖縄県": "47",
+    "東京都": "13", "神奈川県": "14", "埼玉県": "11", "千葉県": "12",
+    "大阪府": "27", "京都府": "26", "兵庫県": "28",
+    "愛知県": "23", "福岡県": "40", "北海道": "01", "沖縄県": "47",
+    "宮城県": "04", "広島県": "34", "静岡県": "22",
 }
 
 BASE_URL = "https://www.rakumachi.jp/syuuekibukkens/"
@@ -31,12 +28,15 @@ class RakumachiScraper(BaseScraper):
         max_price = self.config.get("max_price")
 
         results: list[Property] = []
-        for area in areas:
-            code = AREA_CODES.get(area)
+        for pref, filter_keys in group_by_pref(areas).items():
+            code = AREA_CODES.get(pref)
             if not code:
-                logger.warning("楽待: エリアコード不明 '%s'、スキップします", area)
+                logger.warning("楽待: エリアコード不明 '%s'、スキップします", pref)
                 continue
-            props = self._search_area(code, area, min_yield, min_price, max_price)
+            props = self._search_area(code, pref, min_yield, min_price, max_price)
+            # 市区町村指定があれば住所でフィルタ
+            if None not in filter_keys:
+                props = [p for p in props if address_in_area(p.address, filter_keys)]
             results.extend(props)
         return results
 
@@ -53,15 +53,14 @@ class RakumachiScraper(BaseScraper):
             "page": 1,
         }
         if min_yield:
-            # 楽待の利回りフィルタ（7%以上なら "7"）
             params["rimawari_from"] = str(int(min_yield))
         if min_price:
-            params["kakaku_from"] = str(min_price // 10000)  # 万円単位
+            params["kakaku_from"] = str(min_price // 10000)
         if max_price:
             params["kakaku_to"] = str(max_price // 10000)
 
         properties: list[Property] = []
-        max_pages = 3  # 最大3ページ取得
+        max_pages = 3
 
         for page in range(1, max_pages + 1):
             params["page"] = page
@@ -72,7 +71,6 @@ class RakumachiScraper(BaseScraper):
 
             items = soup.select("div.bukken-list__item, li.property-list-item, article.property")
             if not items:
-                # セレクタが変わった場合はより広い探索
                 items = soup.select("[class*='property'], [class*='bukken']")
 
             if not items:
@@ -84,7 +82,6 @@ class RakumachiScraper(BaseScraper):
                 if prop:
                     properties.append(prop)
 
-            # 次ページがなければ終了
             if not soup.select("a.next, [class*='next']:not([class*='disabled'])"):
                 break
 
@@ -111,19 +108,15 @@ class RakumachiScraper(BaseScraper):
             )
             title_text = title.get_text(strip=True) if title else "（タイトル不明）"
 
-            # 価格
             price_tag = item.select_one("[class*='price'], [class*='kakaku']")
             price = self.parse_price(price_tag.get_text()) if price_tag else None
 
-            # 利回り
             yield_tag = item.select_one("[class*='yield'], [class*='rimawari']")
             yield_rate = self.parse_yield(yield_tag.get_text()) if yield_tag else None
 
-            # 住所
             addr_tag = item.select_one("[class*='address'], [class*='location']")
             address = addr_tag.get_text(strip=True) if addr_tag else ""
 
-            # 築年数
             age_tag = item.select_one("[class*='age'], [class*='chiku']")
             building_age = self.parse_age(age_tag.get_text()) if age_tag else None
 

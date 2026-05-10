@@ -3,6 +3,7 @@ import logging
 import re
 from urllib.parse import urlencode
 from .base import BaseScraper, Property
+from areas import group_by_pref, address_in_area
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +31,14 @@ class SuumoScraper(BaseScraper):
         min_price = self.config.get("min_price")
 
         results: list[Property] = []
-        for area in areas:
-            code = PREF_CODES.get(area)
+        for pref, filter_keys in group_by_pref(areas).items():
+            code = PREF_CODES.get(pref)
             if not code:
-                logger.warning("SUUMO: 都道府県コード不明 '%s'、スキップします", area)
+                logger.warning("SUUMO: 都道府県コード不明 '%s'、スキップします", pref)
                 continue
-            props = self._search_pref(code, area, min_price, max_price)
+            props = self._search_pref(code, pref, min_price, max_price)
+            if None not in filter_keys:
+                props = [p for p in props if address_in_area(p.address, filter_keys)]
             results.extend(props)
         return results
 
@@ -46,16 +49,15 @@ class SuumoScraper(BaseScraper):
         min_price: int | None,
         max_price: int | None,
     ) -> list[Property]:
-        # SUUMO 収益物件検索URL
         params: dict = {
             "ar": "030",  # 関東
         }
         if max_price:
-            params["pc"] = str(max_price // 10000)  # 万円
+            params["pc"] = str(max_price // 10000)
         if min_price:
             params["pcl"] = str(min_price // 10000)
 
-        url = f"{BASE_URL}tf_{pref_code}/to_1/?"  + urlencode(params)
+        url = f"{BASE_URL}tf_{pref_code}/to_1/?" + urlencode(params)
 
         properties: list[Property] = []
         max_pages = 3
@@ -103,19 +105,15 @@ class SuumoScraper(BaseScraper):
             title_tag = item.select_one("h2, h3, [class*='title']")
             title = title_tag.get_text(strip=True) if title_tag else link_tag.get_text(strip=True)
 
-            # 価格
             price_tag = item.select_one("[class*='price'], .dottable-vm")
             price = self.parse_price(price_tag.get_text()) if price_tag else None
 
-            # 利回り
             yield_tag = item.select_one("[class*='yield'], [class*='rimawari'], .cassette-label-rimawari")
             yield_rate = self.parse_yield(yield_tag.get_text()) if yield_tag else None
 
-            # 住所
             addr_tag = item.select_one("[class*='address'], [class*='location'], .dottable-bd")
             address = addr_tag.get_text(strip=True) if addr_tag else ""
 
-            # 築年数
             text = item.get_text()
             building_age = self.parse_age(text)
 
