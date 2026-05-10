@@ -14,6 +14,10 @@ on:
         description: "FORCE（既見物件も通知）"
         type: boolean
         default: false
+      no_reins:
+        description: "REINS をスキップ"
+        type: boolean
+        default: false
 
 jobs:
   search:
@@ -25,7 +29,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # 最新の seen_properties.json を取得するため fetch-depth: 0
           fetch-depth: 1
 
       - name: Set up Python
@@ -33,6 +36,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+
+      - name: Install Chrome (for REINS Selenium)
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -42,6 +50,8 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTIFY_TO_EMAIL: ${{ secrets.NOTIFY_TO_EMAIL }}
+          REINS_USER: ${{ secrets.REINS_USER }}
+          REINS_PASSWORD: ${{ secrets.REINS_PASSWORD }}
         run: |
           ARGS=""
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
@@ -50,6 +60,9 @@ jobs:
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             ARGS="$ARGS --force"
           fi
+          if [ "${{ github.event.inputs.no_reins }}" = "true" ]; then
+            ARGS="$ARGS --no-reins"
+          fi
           python main.py $ARGS
 
       - name: Commit updated seen_properties.json
@@ -57,6 +70,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add seen_properties.json
-          # 変更がある場合のみコミット
           git diff --cached --quiet || git commit -m "chore: update seen_properties [skip ci]"
           git push

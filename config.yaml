@@ -9,7 +9,7 @@ search:
   max_price: 50000000   # 5,000万円
   min_price: 3000000    # 300万円
 
-  # 最低表面利回り (%)
+  # 最低表面利回り (%)  ※民泊想定利回り
   min_yield: 7.0
 
   # 最大築年数（年）
@@ -36,6 +36,12 @@ evaluation:
 
   # 通知する最低スコア（100点満点）
   min_score: 50
+
+  # 担保余力の最低条件（%）: これを下回る場合は通知しない（コメントアウトで無効）
+  # min_collateral_surplus_pct: -10
+
+  # 居住用利回りの最低条件（%）（コメントアウトで無効）
+  # min_residential_yield: 3.0
 
 notification:
   # 送信元GmailアドレスとApp Passwordは GitHub Secrets で設定

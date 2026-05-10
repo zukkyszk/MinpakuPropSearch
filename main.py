@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 import yaml
 
-from scrapers import SuumoScraper, AtHomeScraper, HomesScraper, RakumachiScraper
+from scrapers import SuumoScraper, AtHomeScraper, HomesScraper, RakumachiScraper, ReinsScraper
 from evaluator import filter_properties
 from state import load_seen, save_seen, filter_new, mark_seen
 from notifier import send_notification
@@ -27,11 +27,12 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
-def run(dry_run: bool = False, force: bool = False) -> int:
+def run(dry_run: bool = False, force: bool = False, no_reins: bool = False) -> int:
     config = load_config()
     search_cfg = config.get("search", {})
 
     scrapers = [
+        *([] if no_reins else [ReinsScraper(search_cfg)]),  # ログイン物件（担保・面積情報が豊富）
         RakumachiScraper(search_cfg),
         SuumoScraper(search_cfg),
         AtHomeScraper(search_cfg),
@@ -95,9 +96,10 @@ def main():
     parser = argparse.ArgumentParser(description="民泊物件自動検索・通知")
     parser.add_argument("--dry-run", action="store_true", help="通知せずに結果を表示")
     parser.add_argument("--force", action="store_true", help="既見物件も含めて通知")
+    parser.add_argument("--no-reins", action="store_true", help="REINSをスキップ（認証不要で実行）")
     args = parser.parse_args()
 
-    sys.exit(run(dry_run=args.dry_run, force=args.force))
+    sys.exit(run(dry_run=args.dry_run, force=args.force, no_reins=args.no_reins))
 
 
 if __name__ == "__main__":
