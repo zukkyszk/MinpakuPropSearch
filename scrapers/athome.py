@@ -8,10 +8,17 @@ logger = logging.getLogger(__name__)
 
 # AtHome 収益物件検索エリアスラッグ（都道府県）
 AREA_SLUGS = {
-    "東京都": "tokyo",     "神奈川県": "kanagawa", "埼玉県": "saitama",
-    "千葉県": "chiba",     "大阪府": "osaka",       "京都府": "kyoto",
-    "兵庫県": "hyogo",     "愛知県": "aichi",       "福岡県": "fukuoka",
-    "北海道": "hokkaido",  "宮城県": "miyagi",      "広島県": "hiroshima",
+    "北海道": "hokkaido",  "青森県": "aomori",   "岩手県": "iwate",
+    "宮城県": "miyagi",    "秋田県": "akita",    "山形県": "yamagata",
+    "福島県": "fukushima", "茨城県": "ibaraki",  "栃木県": "tochigi",
+    "群馬県": "gunma",     "埼玉県": "saitama",  "千葉県": "chiba",
+    "東京都": "tokyo",     "神奈川県": "kanagawa",
+    "新潟県": "niigata",   "富山県": "toyama",   "石川県": "ishikawa",
+    "福井県": "fukui",     "山梨県": "yamanashi","長野県": "nagano",
+    "岐阜県": "gifu",      "静岡県": "shizuoka", "愛知県": "aichi",
+    "三重県": "mie",       "滋賀県": "shiga",    "京都府": "kyoto",
+    "大阪府": "osaka",     "兵庫県": "hyogo",    "奈良県": "nara",
+    "和歌山県": "wakayama","広島県": "hiroshima","福岡県": "fukuoka",
     "沖縄県": "okinawa",
 }
 
