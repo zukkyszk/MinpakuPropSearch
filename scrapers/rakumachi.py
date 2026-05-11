@@ -20,7 +20,7 @@ AREA_CODES = {
     "広島県": "34",
 }
 
-BASE_URL = "https://www.rakumachi.jp/syuuekibukkens/"
+BASE_URL = "https://www.rakumachi.jp/syuuekibukken/area/prefecture/dimAll/"
 
 
 class RakumachiScraper(BaseScraper):
@@ -58,11 +58,11 @@ class RakumachiScraper(BaseScraper):
             "page": 1,
         }
         if min_yield:
-            params["rimawari_from"] = str(int(min_yield))
+            params["gross_from"] = str(int(min_yield))
         if min_price:
-            params["kakaku_from"] = str(min_price // 10000)
+            params["price_from"] = str(min_price // 10000)
         if max_price:
-            params["kakaku_to"] = str(max_price // 10000)
+            params["price_to"] = str(max_price // 10000)
 
         properties: list[Property] = []
         max_pages = 3
@@ -74,9 +74,16 @@ class RakumachiScraper(BaseScraper):
             if soup is None:
                 break
 
-            items = soup.select("div.bukken-list__item, li.property-list-item, article.property")
+            items = soup.select(
+                "div[class*='cassetteItem'], "
+                "div[class*='cassette-item'], "
+                "li[class*='cassetteItem'], "
+                "li[class*='cassette-item'], "
+                "article[class*='bukken'], "
+                "div.bukken-list__item"
+            )
             if not items:
-                items = soup.select("[class*='property'], [class*='bukken']")
+                items = soup.select("[class*='cassette']")
 
             if not items:
                 logger.debug("楽待 %s page%d: 物件が見つかりません", area_name, page)
@@ -95,7 +102,11 @@ class RakumachiScraper(BaseScraper):
 
     def _parse_item(self, item, area_name: str) -> Property | None:
         try:
-            link_tag = item.select_one("a[href*='/syuuekibukkens/']")
+            link_tag = item.select_one("a[href*='/syuuekibukken/']")
+            if not link_tag:
+                link_tag = item.select_one("a[href*='rakumachi.jp']")
+            if not link_tag:
+                link_tag = item.select_one("a[href]")
             if not link_tag:
                 return None
             href = link_tag.get("href", "")

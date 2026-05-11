@@ -27,16 +27,13 @@ class SuumoScraper(BaseScraper):
 
     def search(self) -> list[Property]:
         areas = self.config.get("areas", ["東京都"])
-        max_price = self.config.get("max_price")
-        min_price = self.config.get("min_price")
-
         results: list[Property] = []
         for pref, filter_keys in group_by_pref(areas).items():
             code = PREF_CODES.get(pref)
             if not code:
                 logger.warning("SUUMO: 都道府県コード不明 '%s'、スキップします", pref)
                 continue
-            props = self._search_pref(code, pref, min_price, max_price)
+            props = self._search_pref(code, pref)
             if None not in filter_keys:
                 props = [p for p in props if address_in_area(p.address, filter_keys)]
             results.extend(props)
@@ -46,31 +43,22 @@ class SuumoScraper(BaseScraper):
         self,
         pref_code: str,
         area_name: str,
-        min_price: int | None,
-        max_price: int | None,
     ) -> list[Property]:
-        params: dict = {
-            "ar": "030",  # 関東
-        }
-        if max_price:
-            params["pc"] = str(max_price // 10000)
-        if min_price:
-            params["pcl"] = str(min_price // 10000)
-
-        url = f"{BASE_URL}tf_{pref_code}/to_1/?" + urlencode(params)
-
+        # SUUMO物件ライブラリー: 都道府県単位で建物一覧を取得
+        base = f"{BASE_URL}tf_{pref_code}/"
         properties: list[Property] = []
         max_pages = 3
 
         for page in range(1, max_pages + 1):
-            page_url = url + f"&pn={page}" if page > 1 else url
+            page_url = base + (f"?page={page}" if page > 1 else "")
             soup = self.fetch(page_url)
             if soup is None:
                 break
 
             items = soup.select(
-                "div.dottable--cassette, "
-                "div.cassette, "
+                "div[class*='cassette'], "
+                "div[class*='dottable'], "
+                "li[class*='cassette'], "
                 "article[class*='property']"
             )
             if not items:
@@ -82,7 +70,7 @@ class SuumoScraper(BaseScraper):
                 if prop:
                     properties.append(prop)
 
-            if not soup.select("a.pagination-parts[aria-label='次へ'], .pagination .next"):
+            if not soup.select("a.pagination-parts[aria-label='次へ'], .pagination .next, a[rel='next']"):
                 break
 
         logger.info("SUUMO %s: %d件取得", area_name, len(properties))
@@ -91,6 +79,10 @@ class SuumoScraper(BaseScraper):
     def _parse_item(self, item, area_name: str) -> Property | None:
         try:
             link_tag = item.select_one("a[href*='/library/']")
+            if not link_tag:
+                link_tag = item.select_one("a[href*='suumo.jp']")
+            if not link_tag:
+                link_tag = item.select_one("a[href]")
             if not link_tag:
                 return None
             href = link_tag.get("href", "")
